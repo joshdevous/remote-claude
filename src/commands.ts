@@ -244,7 +244,11 @@ function trackCommand(commandName: string, args?: Record<string, any>, screensho
 }
 
 export async function registerCommands(): Promise<void> {
-  const rest = new REST().setToken(config.discordToken);
+  const restOptions: any = {};
+  if (config.discordProxy) {
+    restOptions.api = `${config.discordProxy}/api`;
+  }
+  const rest = new REST(restOptions).setToken(config.discordToken);
   await rest.put(Routes.applicationCommands(config.discordAppId), {
     body: commands.map((c) => c.toJSON()),
   });

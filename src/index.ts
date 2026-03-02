@@ -11,14 +11,23 @@ import { getState } from "./state";
 import { handleDirectMessage, injectStartupContext } from "./messageHandler";
 import { registerCommands, handleCommand } from "./commands";
 
-const client = new Client({
+// Build client options, optionally routing through a proxy to bypass corporate firewalls
+const clientOptions: any = {
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.MessageContent,
   ],
   partials: [Partials.Channel, Partials.Message],
-});
+};
+
+if (config.discordProxy) {
+  console.log(`Using Discord proxy: ${config.discordProxy}`);
+  // Point REST API calls at the proxy instead of discord.com
+  clientOptions.rest = { api: `${config.discordProxy}/api` };
+}
+
+const client = new Client(clientOptions);
 
 export function updateBotPresence(cwd: string) {
   if (client.user) {

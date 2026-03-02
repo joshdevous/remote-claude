@@ -2,6 +2,12 @@ import { spawn, ChildProcess, execSync } from "child_process";
 import path from "path";
 import fs from "fs";
 
+// Trust Windows certificate store
+// Must be set before any TLS connections, and inherited by child processes
+if (!process.env.NODE_OPTIONS?.includes("--use-system-ca")) {
+  process.env.NODE_OPTIONS = [process.env.NODE_OPTIONS, "--use-system-ca"].filter(Boolean).join(" ");
+}
+
 // Simple wrapper that restarts the bot when it exits
 let child: ChildProcess | null = null;
 let crashCount = 0;
