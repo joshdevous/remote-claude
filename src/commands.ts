@@ -15,7 +15,8 @@ import {
 import { config } from "./config";
 import { getState, updateState } from "./state";
 import { cancelCurrentRequest } from "./claude";
-import { setRecalledContext, clearRecalledContext } from "./messageHandler";
+import { setRecalledContext, clearRecalledContext, forceStop } from "./messageHandler";
+import { updateBotPresence } from "./index";
 import {
   takeScreenshot,
   getScreens,
@@ -84,6 +85,10 @@ const commands = [
           { name: "Bypass all", value: "bypassPermissions" }
         )
     ),
+
+  new SlashCommandBuilder()
+    .setName("stop")
+    .setDescription("Stop the current request"),
 
   new SlashCommandBuilder()
     .setName("restart")
@@ -282,6 +287,7 @@ export async function handleCommand(
 
       trackCommand("cwd", { path: normalized });
       updateState({ cwd: normalized, hasActiveSession: false, sessionCostUsd: 0 });
+      updateBotPresence(normalized);
       await interaction.reply(
         `Working directory changed to \`${normalized}\`\nConversation cleared (new directory).`
       );
@@ -341,6 +347,13 @@ export async function handleCommand(
       trackCommand("perms", { mode });
       updateState({ permissionMode: mode });
       await interaction.reply(`Permission mode changed to \`${mode}\`.`);
+      break;
+    }
+
+    case "stop": {
+      trackCommand("stop");
+      forceStop();
+      await interaction.reply("Stopped.");
       break;
     }
 
@@ -894,6 +907,7 @@ Remove-Item -Path '${tempFile.replace(/\\/g, "\\\\")}' -ErrorAction SilentlyCont
         "`/type [text]` — Type text into the active window",
         "`/screens` — List available monitors and windows",
         "`/todo` — View Claude's current task list",
+        "`/stop` — Stop the current request",
         "`/restart` — Restart bot (picks up code changes)",
         "`/help` — This message",
         "",

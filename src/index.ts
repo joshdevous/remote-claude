@@ -4,21 +4,39 @@ import {
   Partials,
   Events,
   InteractionType,
+  ActivityType,
 } from "discord.js";
 import { config } from "./config";
+import { getState } from "./state";
 import { handleDirectMessage, injectStartupContext } from "./messageHandler";
 import { registerCommands, handleCommand } from "./commands";
 
 const client = new Client({
   intents: [
+    GatewayIntentBits.Guilds,
     GatewayIntentBits.DirectMessages,
     GatewayIntentBits.MessageContent,
   ],
   partials: [Partials.Channel, Partials.Message],
 });
 
+export function updateBotPresence(cwd: string) {
+  if (client.user) {
+    client.user.setPresence({
+      status: "online",
+      activities: [{
+        name: cwd,
+        type: ActivityType.Watching,
+      }],
+    });
+  }
+}
+
 client.once(Events.ClientReady, async (c) => {
   console.log(`Logged in as ${c.user.tag}`);
+  const state = getState();
+  console.log(`Setting presence to: "${state.cwd}"`);
+  updateBotPresence(state.cwd);
   try {
     await registerCommands();
 

@@ -22,6 +22,12 @@ import http from "http";
 
 let busy = false;
 let currentRequestCancelled = false;
+
+export function forceStop(): void {
+  cancelCurrentRequest();
+  currentRequestCancelled = true;
+  busy = false;
+}
 let pendingMessage: { prompt: string; message: Message } | null = null;
 let recalledContext: string | null = null;
 let justRestarted = true; // Flag to inject restart context on first message

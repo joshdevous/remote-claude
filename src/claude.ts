@@ -1,4 +1,4 @@
-import { spawn } from "child_process";
+import { spawn, execSync } from "child_process";
 import { createInterface } from "readline";
 import fs from "fs";
 import path from "path";
@@ -15,8 +15,20 @@ let lastTodoCount = 0;
 
 export function cancelCurrentRequest(): boolean {
   if (activeProc) {
-    console.log("[claude] Cancelling active request");
-    activeProc.kill();
+    const pid = activeProc.pid;
+    console.log(`[claude] Cancelling active request (PID: ${pid})`);
+    // On Windows, .kill() only kills the shell, not the child process tree.
+    // Use taskkill /F /T to force-kill the entire process tree.
+    if (pid) {
+      try {
+        execSync(`taskkill /F /T /PID ${pid}`, { stdio: "ignore" });
+      } catch {
+        // Process may have already exited
+        activeProc.kill();
+      }
+    } else {
+      activeProc.kill();
+    }
     activeProc = null;
     return true;
   }
