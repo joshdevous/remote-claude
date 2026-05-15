@@ -56,10 +56,13 @@ export interface ScreenshotOptions {
   monitor?: "primary" | "all" | number;  // Monitor selection
   windowId?: number;  // Process ID for window capture
   outputPath?: string;  // Custom output path
+  grid?: boolean;  // Overlay coordinate grid
+  gridSpacing?: number;  // Pixels between grid lines (default 200)
+  crop?: { x: number; y: number; w: number; h: number };  // Crop to screen region
 }
 
 export async function takeScreenshot(options: ScreenshotOptions = {}): Promise<string> {
-  const { monitor = "primary", windowId, outputPath } = options;
+  const { monitor = "primary", windowId, outputPath, grid, gridSpacing, crop } = options;
 
   // Generate output path if not provided
   const tempDir = path.join(process.cwd(), ".temp-attachments");
@@ -77,6 +80,20 @@ export async function takeScreenshot(options: ScreenshotOptions = {}): Promise<s
     args.push("-WindowId", windowId.toString());
   } else {
     args.push("-Monitor", monitor.toString());
+  }
+
+  if (grid) {
+    args.push("-Grid");
+    if (gridSpacing) {
+      args.push("-GridSpacing", gridSpacing.toString());
+    }
+  }
+
+  if (crop) {
+    args.push("-CropX", crop.x.toString());
+    args.push("-CropY", crop.y.toString());
+    args.push("-CropW", crop.w.toString());
+    args.push("-CropH", crop.h.toString());
   }
 
   await runPowerShell(script, args);
