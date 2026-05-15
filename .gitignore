@@ -6,3 +6,4 @@ data/
 .temp-prompts/
 logs/
 nul
+.omc/
