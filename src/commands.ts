@@ -26,6 +26,7 @@ import {
   ScreenshotOptions,
 } from "./screenshot";
 import { recordScreen, parseRecordTarget } from "./recording";
+import { mouseControl, MouseAction } from "./mouse";
 
 const commands = [
   new SlashCommandBuilder()
@@ -225,6 +226,36 @@ const commands = [
   new SlashCommandBuilder()
     .setName("screens")
     .setDescription("List available monitors and open windows"),
+
+  new SlashCommandBuilder()
+    .setName("click")
+    .setDescription("Move mouse to coordinates and click")
+    .addIntegerOption((opt) =>
+      opt.setName("x").setDescription("X coordinate").setRequired(true)
+    )
+    .addIntegerOption((opt) =>
+      opt.setName("y").setDescription("Y coordinate").setRequired(true)
+    )
+    .addStringOption((opt) =>
+      opt
+        .setName("button")
+        .setDescription("Mouse button (default: left)")
+        .addChoices(
+          { name: "Left click", value: "click" },
+          { name: "Right click", value: "rightclick" },
+          { name: "Double click", value: "doubleclick" }
+        )
+    ),
+
+  new SlashCommandBuilder()
+    .setName("mouse")
+    .setDescription("Move mouse cursor to coordinates (no click)")
+    .addIntegerOption((opt) =>
+      opt.setName("x").setDescription("X coordinate").setRequired(true)
+    )
+    .addIntegerOption((opt) =>
+      opt.setName("y").setDescription("Y coordinate").setRequired(true)
+    ),
 
   new SlashCommandBuilder()
     .setName("help")
@@ -856,6 +887,38 @@ Remove-Item -Path '${tempFile.replace(/\\/g, "\\\\")}' -ErrorAction SilentlyCont
       break;
     }
 
+    case "click": {
+      const x = interaction.options.getInteger("x", true);
+      const y = interaction.options.getInteger("y", true);
+      const button = (interaction.options.getString("button") || "click") as MouseAction;
+      await interaction.deferReply();
+
+      try {
+        await mouseControl({ x, y, action: button });
+        const actionLabel = button === "rightclick" ? "Right-clicked" : button === "doubleclick" ? "Double-clicked" : "Clicked";
+        trackCommand("click", { x, y, button });
+        await interaction.editReply(`🖱️ ${actionLabel} at (${x}, ${y})`);
+      } catch (err: any) {
+        await interaction.editReply(`❌ Mouse click failed: ${err.message.slice(0, 200)}`);
+      }
+      break;
+    }
+
+    case "mouse": {
+      const x = interaction.options.getInteger("x", true);
+      const y = interaction.options.getInteger("y", true);
+      await interaction.deferReply();
+
+      try {
+        await mouseControl({ x, y, action: "move" });
+        trackCommand("mouse", { x, y });
+        await interaction.editReply(`🖱️ Moved cursor to (${x}, ${y})`);
+      } catch (err: any) {
+        await interaction.editReply(`❌ Mouse move failed: ${err.message.slice(0, 200)}`);
+      }
+      break;
+    }
+
     case "screens": {
       trackCommand("screens");
       await interaction.deferReply();
@@ -907,6 +970,8 @@ Remove-Item -Path '${tempFile.replace(/\\/g, "\\\\")}' -ErrorAction SilentlyCont
         "`/record [duration] [target] [format]` — Record screen as GIF/MP4",
         "`/open [target]` — Open a URL, app, or file",
         "`/focus [app]` — Bring a window to the foreground",
+        "`/click [x] [y] [button]` — Click at screen coordinates",
+        "`/mouse [x] [y]` — Move cursor to coordinates",
         "`/key [keys]` — Send keystrokes (e.g. `ctrl+s`, `alt+tab`)",
         "`/type [text]` — Type text into the active window",
         "`/screens` — List available monitors and windows",
