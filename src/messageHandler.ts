@@ -293,22 +293,6 @@ async function processMessage(
       updateState({ pendingScreenshot: null });
     }
 
-    // Clean up all temp files (screenshots, user uploads, system prompts)
-    for (const dir of [".temp-attachments", ".temp-prompts"]) {
-      try {
-        const tempDir = path.join(state.cwd, dir);
-        if (fs.existsSync(tempDir)) {
-          for (const file of fs.readdirSync(tempDir)) {
-            try {
-              fs.unlinkSync(path.join(tempDir, file));
-            } catch {}
-          }
-        }
-      } catch (err) {
-        console.error(`[messageHandler] Failed to cleanup ${dir}:`, err);
-      }
-    }
-
     typing.stop();
 
     // Check if this request was cancelled while it was running
@@ -341,12 +325,62 @@ async function processMessage(
       await ping.delete().catch(() => {});
     }
 
+    // Send any inline screenshots (📸[filepath] markers) as Discord attachments
+    const screenshotMarkerRegex = /📸\[([^\]]+)\]/g;
+    const screenshotPaths: string[] = [];
+    let screenshotMatch;
+    while ((screenshotMatch = screenshotMarkerRegex.exec(response.text)) !== null) {
+      screenshotPaths.push(screenshotMatch[1]);
+    }
+
+    for (const filePath of screenshotPaths) {
+      try {
+        if (fs.existsSync(filePath)) {
+          await channel.send({ files: [filePath] });
+        }
+      } catch (err) {
+        console.error(`[messageHandler] Failed to send screenshot ${filePath}:`, err);
+      }
+    }
+
+    // Strip screenshot markers from streamed messages so they don't show as raw text
+    if (screenshotPaths.length > 0) {
+      for (const msg of status.messages) {
+        try {
+          const cleaned = msg.content.replace(/📸\[[^\]]+\]/g, "").trim();
+          if (cleaned !== msg.content) {
+            if (cleaned) {
+              await msg.edit(cleaned);
+            } else {
+              await msg.delete();
+            }
+          }
+        } catch {}
+      }
+    }
+
     // Only send error or no-response cases
     // (text was already streamed via onStream callback)
     if (response.error) {
       await channel.send(`**Error:** ${response.error}`);
     } else if (!response.text.trim() && response.toolUse.length === 0) {
       await channel.send("(No response)");
+    }
+
+    // Clean up all temp files (screenshots, user uploads, system prompts)
+    for (const dir of [".temp-attachments", ".temp-prompts"]) {
+      try {
+        const cleanupDir = path.join(state.cwd, dir);
+        if (fs.existsSync(cleanupDir)) {
+          for (const file of fs.readdirSync(cleanupDir)) {
+            try {
+              fs.unlinkSync(path.join(cleanupDir, file));
+            } catch {}
+          }
+        }
+      } catch (err) {
+        console.error(`[messageHandler] Failed to cleanup ${dir}:`, err);
+      }
     }
   } catch (err: any) {
     typing.stop();
